@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hold Up! 🐻</title>
+<style>
+  :root {
+    --bg: #fff3e6;
+    --ink: #4a2f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Trebuchet MS", "Comic Sans MS", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 15% 20%, #ffe0c2 0 12%, transparent 13%),
+      radial-gradient(circle at 85% 75%, #ffd6e0 0 14%, transparent 15%),
+      var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 48px;
+    overflow-x: hidden;
+  }
+  .stage { width: min(460px, 100%); }
+
+  button, .btn {
+    font: inherit; font-weight: bold; cursor: pointer;
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 12px 22px; background: #9be3a6; color: var(--ink);
+    box-shadow: 0 4px 0 var(--ink);
+    transition: transform .1s, box-shadow .1s;
+  }
+  button:hover { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+  button:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+
+  #open-btn { margin-top: 8px; font-size: 1.05rem; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+  #check-form {
+    display: none;
+    width: min(420px, 100%);
+    margin-top: 20px;
+    background: #fffdf7;
+    border: 3px solid var(--ink);
+    border-radius: 22px;
+    padding: 20px 20px 22px;
+    box-shadow: 0 6px 0 var(--ink);
+    position: relative;
+  }
+  #check-form.show { display: block; animation: pop .45s ease-out; }
+  @keyframes pop { from { transform: scale(.7) translateY(20px); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #check-form h2 { margin: 0 0 4px; text-align: center; font-size: 1.4rem; }
+  #check-form .hint { margin: 0 0 14px; text-align: center; opacity: .7; font-size: .9rem; }
+  .q {
+    margin: 0 0 12px; padding: 12px 12px 10px;
+    background: #fff; border: 2px dashed #d9b99b; border-radius: 14px;
+  }
+  .q legend { display: none; }
+  .qtext { margin: 0 0 8px; font-weight: bold; }
+  .scale { display: flex; gap: 8px; justify-content: space-between; }
+  .scale label { flex: 1; cursor: pointer; user-select: none; }
+  .scale input { position: absolute; opacity: 0; pointer-events: none; }
+  .pill {
+    display: grid; place-items: center; height: 44px;
+    border: 3px solid var(--ink); border-radius: 14px;
+    background: #fff; font-weight: bold; font-size: 1.1rem;
+    transition: background .15s, transform .15s, box-shadow .15s;
+  }
+  .scale label:hover .pill { transform: translateY(-2px); }
+  .scale input:focus-visible + .pill { outline: 3px solid #ff8fa3; outline-offset: 2px; }
+  .scale input:checked + .pill {
+    background: #ffd966; transform: scale(1.12);
+    box-shadow: 0 3px 0 var(--ink);
+  }
+  .scale input:checked + .pill::after { content: " ⭐"; font-size: .8rem; }
+  .note {
+    margin: 8px 0 0; padding: 6px 10px; border-radius: 10px;
+    background: #fff0f3; color: #b0305a; font-size: .9rem; font-weight: bold;
+    text-align: center; animation: noteIn .3s ease-out;
+  }
+  .note:empty { display: none; }
+  @keyframes noteIn { from { transform: translateY(-6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opts .pill { height: auto; min-height: 44px; padding: 8px 14px; text-align: center; }
+  .opts input:checked + .pill { transform: scale(1.03); }
+  .ends { display: flex; justify-content: space-between; font-size: .75rem; opacity: .65; margin-top: 6px; }
+  .q.snap { animation: snap .45s; }
+  @keyframes snap { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  #submit-btn { display: block; margin: 0 auto; background: #ffd966; }
+  #submit-btn[disabled] { opacity: .5; cursor: not-allowed; }
+  #result { text-align: center; font-weight: bold; margin: 14px 0 0; min-height: 1.4em; }
+
+  .letter-overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    padding: 20px; background: rgba(74, 47, 34, .55);
+    backdrop-filter: blur(3px);
+  }
+  .letter-overlay.show { display: flex; animation: fadeIn .3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .letter {
+    position: relative; width: min(440px, 100%); max-height: 88vh; overflow-y: auto;
+    padding: 72px 28px 26px;
+    background:
+      repeating-linear-gradient(transparent 0 31px, #f0d9c4 31px 32px),
+      #fffaf0;
+    border: 3px solid var(--ink); border-radius: 14px;
+    box-shadow: 0 8px 0 var(--ink);
+    animation: unfold .7s cubic-bezier(.2, 1.2, .4, 1);
+  }
+  @keyframes unfold {
+    from { transform: translateY(80px) scale(.3) rotate(-10deg); opacity: 0; }
+    to   { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+  }
+  .seal {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 48px; height: 48px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 24px;
+    background: #ff8fa3; border: 3px solid var(--ink);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  @keyframes beat { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.15); } }
+  .letter h2 {
+    margin: 0 0 12px; font-size: 2rem; text-align: center;
+    font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+    color: #b0305a;
+  }
+  .letter-body { line-height: 32px; font-size: 1.05rem; }
+  .letter-body p { margin: 0 0 32px; }
+  .signoff { margin: 0 0 18px; line-height: 32px; text-align: right; }
+  .signoff span { font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive; color: #b0305a; font-size: 1.15rem; }
+  #letter-close { display: block; margin: 0 auto; background: #ffc9d6; }
+
+  .heart { position: fixed; bottom: -30px; font-size: 24px; pointer-events: none; animation: rise 3s linear forwards; z-index: 10; }
+  @keyframes rise { to { transform: translateY(-110vh) rotate(25deg); opacity: 0; } }
+  svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+  .sign-group { transform-origin: 270px 335px; animation: wobble 2.4s ease-in-out infinite; }
+  @keyframes wobble { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  .eyes { transform-origin: 130px 252px; animation: blink 4s infinite; }
+  @keyframes blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+  .bear { transform-origin: 130px 470px; animation: bob 2s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="stage">
+<svg viewBox="0 0 400 500" role="img" aria-label="A happy teddy bear holding a stop sign that says: Stop, need to confirm you are the right person">
+
+  <!-- ground shadow -->
+  <ellipse cx="130" cy="488" rx="110" ry="9" fill="#000" opacity=".1"/>
+
+  <!-- STOP SIGN (wobbling, behind paw) -->
+  <g class="sign-group">
+    <rect x="265" y="170" width="10" height="180" rx="4" fill="#8d6e63" stroke="#4a2f22" stroke-width="3"/>
+    <polygon points="297.6,43.5 336.5,82.4 336.5,137.6 297.6,176.5 242.4,176.5 203.5,137.6 203.5,82.4 242.4,43.5"
+             fill="#e23a3a" stroke="#4a2f22" stroke-width="5" stroke-linejoin="round"/>
+    <polygon points="295,52 328,85 328,135 295,168 245,168 212,135 212,85 245,52"
+             fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+    <text x="270" y="124" text-anchor="middle" font-family="Arial Black, Impact, sans-serif"
+          font-size="38" font-weight="900" fill="#fff">STOP</text>
+    <rect x="212" y="188" width="142" height="74" rx="10" fill="#fff8e1" stroke="#4a2f22" stroke-width="3"/>
+    <text text-anchor="middle" font-family="'Trebuchet MS', sans-serif" font-size="13" font-weight="bold" fill="#4a2f22">
+      <tspan x="283" y="210">need to confirm</tspan>
+      <tspan x="283" y="229">you are the</tspan>
+      <tspan x="283" y="248">right person 🧐</tspan>
+    </text>
+  </g>
+
+  <!-- BEAR -->
+  <g class="bear">
+    <!-- legs -->
+    <ellipse cx="88" cy="468" rx="30" ry="22" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <ellipse cx="172" cy="468" rx="30" ry="22" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <ellipse cx="88" cy="472" rx="14" ry="10" fill="#e8b987"/>
+    <ellipse cx="172" cy="472" rx="14" ry="10" fill="#e8b987"/>
+
+    <!-- body -->
+    <ellipse cx="130" cy="395" rx="72" ry="80" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <ellipse cx="130" cy="410" rx="44" ry="55" fill="#e8b987"/>
+
+    <!-- left arm (resting) -->
+    <ellipse cx="62" cy="395" rx="22" ry="42" transform="rotate(12 62 395)" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+
+    <!-- right arm raised to the pole -->
+    <path d="M185 365 Q235 360 262 335" fill="none" stroke="#4a2f22" stroke-width="46" stroke-linecap="round"/>
+    <path d="M185 365 Q235 360 262 335" fill="none" stroke="#c98b56" stroke-width="38" stroke-linecap="round"/>
+    <circle cx="268" cy="332" r="21" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <circle cx="268" cy="336" r="9" fill="#e8b987"/>
+
+    <!-- ears -->
+    <circle cx="72" cy="203" r="29" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <circle cx="188" cy="203" r="29" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+    <circle cx="72" cy="203" r="15" fill="#ffb3c1"/>
+    <circle cx="188" cy="203" r="15" fill="#ffb3c1"/>
+
+    <!-- head -->
+    <circle cx="130" cy="260" r="74" fill="#c98b56" stroke="#4a2f22" stroke-width="4"/>
+
+    <!-- muzzle -->
+    <ellipse cx="130" cy="285" rx="31" ry="24" fill="#e8b987" stroke="#4a2f22" stroke-width="3"/>
+
+    <!-- happy raised eyebrows -->
+    <path d="M92 236 Q106 228 120 236" fill="none" stroke="#4a2f22" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M168 236 Q154 228 140 236" fill="none" stroke="#4a2f22" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- big sparkly eyes -->
+    <g class="eyes">
+      <circle cx="107" cy="256" r="11" fill="#2b1a12"/>
+      <circle cx="153" cy="256" r="11" fill="#2b1a12"/>
+      <circle cx="111" cy="251" r="4.5" fill="#fff"/>
+      <circle cx="157" cy="251" r="4.5" fill="#fff"/>
+      <circle cx="103" cy="261" r="2" fill="#fff"/>
+      <circle cx="149" cy="261" r="2" fill="#fff"/>
+    </g>
+
+    <!-- rosy blush -->
+    <ellipse cx="86" cy="282" rx="13" ry="8" fill="#ff8fa3" opacity=".7"/>
+    <ellipse cx="174" cy="282" rx="13" ry="8" fill="#ff8fa3" opacity=".7"/>
+
+    <!-- nose -->
+    <ellipse cx="130" cy="274" rx="11" ry="7.5" fill="#2b1a12"/>
+    <ellipse cx="127" cy="272" rx="3" ry="2" fill="#fff" opacity=".7"/>
+
+    <!-- big open smile -->
+    <path d="M130 281 V287" stroke="#2b1a12" stroke-width="3" stroke-linecap="round"/>
+    <path d="M110 289 Q130 318 150 289 Q130 296 110 289 Z" fill="#7a2e3a" stroke="#2b1a12" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M120 304 Q130 298 140 304 Q130 312 120 304 Z" fill="#ff8fa3"/>
+  </g>
+</svg>
+</div>
+
+<button id="open-btn" type="button" aria-expanded="false" aria-controls="check-form">🧸 Okay, let's check me!</button>
+
+<form id="check-form" novalidate>
+  <h2>🧸 Bear Security Checklist</h2>
+  <p class="hint">Answer honestly. The bear is watching. 👀</p>
+
+  <fieldset class="q" data-lock="5">
+    <legend>How good do you feel today?</legend>
+    <p class="qtext">1. How good do you feel today? 🌈</p>
+    <div class="scale">
+      <label><input type="radio" name="q1" value="1"><span class="pill">1</span></label>
+      <label><input type="radio" name="q1" value="2"><span class="pill">2</span></label>
+      <label><input type="radio" name="q1" value="3"><span class="pill">3</span></label>
+      <label><input type="radio" name="q1" value="4"><span class="pill">4</span></label>
+      <label><input type="radio" name="q1" value="5"><span class="pill">5</span></label>
+    </div>
+    <div class="ends"><span>meh</span><span>amazing</span></div>
+  </fieldset>
+
+  <fieldset class="q" data-lock="5">
+    <legend>How good do you look today?</legend>
+    <p class="qtext">2. How good do you look today? 💄</p>
+    <div class="scale">
+      <label><input type="radio" name="q2" value="1"><span class="pill">1</span></label>
+      <label><input type="radio" name="q2" value="2"><span class="pill">2</span></label>
+      <label><input type="radio" name="q2" value="3"><span class="pill">3</span></label>
+      <label><input type="radio" name="q2" value="4"><span class="pill">4</span></label>
+      <label><input type="radio" name="q2" value="5"><span class="pill">5</span></label>
+    </div>
+    <div class="ends"><span>bed hair</span><span>stunning</span></div>
+  </fieldset>
+
+  <fieldset class="q" data-lock="5">
+    <legend>How good of a girlfriend are you?</legend>
+    <p class="qtext">3. How good of a girlfriend are you? 💖</p>
+    <div class="scale">
+      <label><input type="radio" name="q3" value="1"><span class="pill">1</span></label>
+      <label><input type="radio" name="q3" value="2"><span class="pill">2</span></label>
+      <label><input type="radio" name="q3" value="3"><span class="pill">3</span></label>
+      <label><input type="radio" name="q3" value="4"><span class="pill">4</span></label>
+      <label><input type="radio" name="q3" value="5"><span class="pill">5</span></label>
+    </div>
+    <div class="ends"><span>learning</span><span>the best</span></div>
+  </fieldset>
+
+  <fieldset class="q" id="name-q" data-lock="My Baby">
+    <legend>What is the name given to you?</legend>
+    <p class="qtext">4. What is the name given to you? 🏷️</p>
+    <div class="opts">
+      <label><input type="radio" name="name" value="Chloe"><span class="pill">Chloe</span></label>
+      <label><input type="radio" name="name" value="Woman"><span class="pill">Woman</span></label>
+      <label><input type="radio" name="name" value="Crazy"><span class="pill">Crazy</span></label>
+      <label><input type="radio" name="name" value="My Baby"><span class="pill">My Baby</span></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="q" data-lock="3">
+    <legend>Do you swear to remain as wonderful as you are?</legend>
+    <p class="qtext">5. Do you swear to remain as wonderful as you are? 🤞</p>
+    <div class="opts">
+      <label><input type="radio" name="swear" value="1"><span class="pill">No</span></label>
+      <label><input type="radio" name="swear" value="2"><span class="pill">Maybe</span></label>
+      <label><input type="radio" name="swear" value="3"><span class="pill">YES, Cause I'm the best.</span></label>
+    </div>
+  </fieldset>
+
+  <button id="submit-btn" type="submit">Let me in, It's me 💌</button>
+  <p id="result" aria-live="polite"></p>
+</form>
+
+<!-- The love letter. Opens after the checklist is submitted. -->
+<div class="letter-overlay" id="letter-overlay" aria-hidden="true">
+  <div class="letter" role="dialog" aria-modal="true" aria-labelledby="letter-to">
+    <div class="seal" aria-hidden="true">💖</div>
+    <h2 id="letter-to">To My Baby,</h2>
+
+    <!-- ✏️ EDIT YOUR MESSAGE BELOW: change the text inside this <div>.
+         Each <p> is a new paragraph. Add or remove as many as you like. -->
+    <div class="letter-body" id="letter-message">
+      <p>I told you I'm not good with letters, but bear with me, get it? 😉</p>
+      <p>It has been 1 month since I asked you to give our relationship a try, and I haven't regretted a day ever since. Every day I ask myself how I, who would never have approached someone I didn't know, managed to build up the confidence to ask you, let alone send you a message.</p>
+      <p>While I haven't been able to do all the activities I wished to, I also have to remind myself our relationship is unique, and it's kinda cute having to hide it from people. Our little calls and voice notes make the days I can't see you better, and having to remind you that you look better than everyone else I know is like a full time job 😂</p>
+      <p>I can't say everything I would have wanted, because there aren't enough words to say it, but I will keep trying to improve our relationship. For now, you focus on your studies, and after, we can celebrate.</p>
+    </div>
+
+    <p class="signoff">From the hidden boyfriend,<br><span>Darrian 🧸</span></p>
+    <button type="button" id="letter-close">💌 Close letter</button>
+  </div>
+</div>
+
+<script>
+  const openBtn = document.getElementById('open-btn');
+  const form = document.getElementById('check-form');
+  const questions = [...form.querySelectorAll('.q[data-lock]')];
+  const result = document.getElementById('result');
+  const snapLines = [
+    'Nice try 😏 The bear says it\'s a 5.',
+    'Hmm, the bear heard a 5. 🧸',
+    'Bear math: everything is a 5. ✨',
+    'Aww, you meant 5. The bear can tell. 💛'
+  ];
+  const swearLines = [
+    'Wrong answer 😤 The bear heard YES.',
+    'Excuse me?! You are staying wonderful. 💅',
+    'Nope. Not accepting that. YES it is. 💖'
+  ];
+  const nameLines = [
+    'That\'s not it 🙅 The name is "My Baby".',
+    'Wrong name! It\'s My Baby. 💕',
+    'Nice try. The bear only knows "My Baby". 🧸'
+  ];
+  let snaps = 0, swearSnaps = 0, nameSnaps = 0;
+
+  openBtn.addEventListener('click', () => {
+    const show = form.classList.toggle('show');
+    openBtn.setAttribute('aria-expanded', show);
+    openBtn.style.animation = 'none';
+    openBtn.textContent = show ? '🙈 Hide the checklist' : '🧸 Okay, let\'s check me!';
+    if (show) setTimeout(() => form.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  });
+
+  // Locked questions always highlight their favourite answer (5 on the scales,
+  // option 3 on the swear question): pick anything else and it flashes
+  // briefly, then snaps right back.
+  questions.forEach(q => {
+    const lock = q.dataset.lock;
+    const five = q.querySelector(`input[value="${lock}"]`);
+    const note = document.createElement('p');
+    note.className = 'note';
+    note.setAttribute('aria-live', 'polite');
+    q.appendChild(note);
+    q.querySelectorAll('input').forEach(input => {
+      input.addEventListener('change', () => {
+        if (input === five) { note.textContent = ''; return; }
+        note.textContent = '🧸 ' + (q.id === 'name-q'
+          ? nameLines[nameSnaps++ % nameLines.length]
+          : lock === '3'
+            ? swearLines[swearSnaps++ % swearLines.length]
+            : snapLines[snaps++ % snapLines.length]);
+        q.classList.remove('snap'); void q.offsetWidth; q.classList.add('snap');
+        setTimeout(() => { five.checked = true; }, 350);
+      });
+    });
+  });
+
+  function hearts(count) {
+    for (let i = 0; i < count; i++) {
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = ['💖', '🧸', '✨', '💛'][Math.floor(Math.random() * 4)];
+      h.style.left = Math.random() * 95 + 'vw';
+      h.style.animationDelay = (Math.random() * 0.8) + 's';
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 4200);
+    }
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const unanswered = [...form.querySelectorAll('.q')].find(q => !q.querySelector('input:checked'));
+    if (unanswered) {
+      result.textContent = 'The bear needs an answer to every question! 🧸';
+      unanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    const picked = form.querySelector('input[name="name"]:checked');
+    result.textContent = `🎉 Verified! Welcome, ${picked.value}! 🧸`;
+    hearts(24);
+    openLetter();
+  });
+
+  const overlay = document.getElementById('letter-overlay');
+  function openLetter() {
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    const paper = overlay.querySelector('.letter');
+    paper.scrollTop = 0;
+    document.getElementById('letter-close').focus({ preventScroll: true });
+    paper.scrollTop = 0;
+  }
+  function closeLetter() {
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  document.getElementById('letter-close').addEventListener('click', closeLetter);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeLetter(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLetter(); });
+</script>
+
+</body>
+</html>
